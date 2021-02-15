@@ -98,13 +98,14 @@ class JavTool:
             try:
                 info_json = json.loads(info_json)
                 actresses = info_json['actresses']
+                print(actresses)
                 if actresses == None:
                     raise KeyError
                 title = info_json['title']
                 print(title)
                 if len(actresses) == 1:
-                    print(''+actresses[0])
-                    return actresses[0]
+                    print(actresses[0]['name'])
+                    return actresses[0]['name']
                 elif len(actresses) > 1:
                     print('double')
                     return 'double'
@@ -181,7 +182,7 @@ class JavTool:
         else:
             self.moveVideo(file_path, old_name, 'no')
 
-    def run(self, classify=False):
+    def run(self, classify=True):
         """
             work_path: 需要操作的目录
 
@@ -202,7 +203,7 @@ class JavTool:
                 with Pool(8) as p:
                     p.map(self.classIfy, video_dict)
                 # for video_name in video_dict:
-                #     self.classIfy(video_name)
+                    # self.classIfy(video_name)
         except FileNotFoundError:
             print('没有找到视频文件.')
 
