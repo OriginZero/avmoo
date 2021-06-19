@@ -1,15 +1,10 @@
 import os
 import re
 import requests
-import json
 from time import time
 from lxml import etree
 from multiprocessing import Pool
 from shutil import move as move_file
-
-# 匹配
-# Actresses(.|\n)+?</dd>
-
 
 class JavTool:
     __slots__ = ('_videosuffix', '_regex', '_headers', '_payload',
