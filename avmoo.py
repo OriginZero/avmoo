@@ -3,7 +3,7 @@ import re
 import requests
 import json
 from time import time
-# from lxml import etree
+from lxml import etree
 from multiprocessing import Pool
 from shutil import move as move_file
 
@@ -12,7 +12,7 @@ from shutil import move as move_file
 
 
 class JavTool:
-    __slots__ = ('_videosuffix', '_regex', '_headers',
+    __slots__ = ('_videosuffix', '_regex', '_headers', '_payload',
                  '_search_url', 'work_path')
 
     def __init__(self, work_path):
@@ -23,10 +23,14 @@ class JavTool:
 
         self._videosuffix = ['.wmv', '.rmvb', '.mov', '.avi', '.mp4', '.mkv']
         self._regex = re.compile('([A-Za-z]{3,4})(-|_)(\d{3})')
+        self._payload={
+            'username': 'admin',
+            'password': 'admin123'
+        }
         self._headers = {
-            'Accept': 'application/json',
-            'cache-control': 'no-cache',
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36'
+            'Host': 'www.libredmm.com',
+            'Connection': 'keep-alive',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36'
         }
         # self._search_url = 'https://javzoo.com/cn/search/{0}'
         self._search_url = 'https://www.libredmm.com/movies/{0}'
@@ -40,7 +44,6 @@ class JavTool:
         except FileExistsError as e:
             move_file(os.path.join(video_path, video_name),
                       os.path.join(new_dir, video_name))
-        print('----------------------------')
         print('{}\tMOVE\tOK'.format(video_name))
 
     def classIfy(self, video_name):
@@ -49,7 +52,7 @@ class JavTool:
         # 下载
         def downHtml(url):
             try:
-                r = requests.get(url, headers=self._headers)
+                r = requests.get(url, headers=self._headers, data=self._payload)
                 r.raise_for_status
                 r.encoding = 'utf-8'
                 return r.text
@@ -83,42 +86,15 @@ class JavTool:
                 null 代表无
             """
             try:
-                a_tag = etree.HTML(info_html).xpath(
-                    '//div[@id="avatar-waterfall"]//span')
-                if len(a_tag) == 1:
-                    return a_tag[0].text
-                elif len(a_tag) > 1:
+                names = etree.HTML(info_html).xpath('//div[@class="card actress"]//h6[@class="card-title"]//a/text()')
+                if len(names) == 1:
+                    return names[0]
+                if len(names) > 1:
                     return 'double'
-                else:
-                    raise IndexError
-            except IndexError:
                 return 'null'
-
-        def parserJson(info_json):
-            try:
-                info_json = json.loads(info_json)
-                actresses = info_json['actresses']
-                print(actresses)
-                if actresses == None:
-                    raise KeyError
-                title = info_json['title']
-                print(title)
-                if len(actresses) == 1:
-                    print(actresses[0]['name'])
-                    return actresses[0]['name']
-                elif len(actresses) > 1:
-                    print('double')
-                    return 'double'
-                else:
-                    print(actresses)
-                    print('null')
-                    return 'null'
-
-            except json.decoder.JSONDecodeError:
-                pass
-            except KeyError:
-                print('error:'+video_name)
-                return 'null'
+            except Exception as e:
+                print('parse info error {}'.format(e))
+                return 'error'
 
         print('查找{}中...'.format(video_name))
         search_url = self._search_url.format(os.path.splitext(video_name)[0])
@@ -132,7 +108,8 @@ class JavTool:
         # video_actor = parserInfo(downHtml('https://javzoo.com/cn/movie/6yy5'))
         video_actor = parserInfo(downHtml(info_url))
         """
-        video_actor = parserJson(downHtml(search_url))
+        # video_actor = parserJson(downHtml(search_url))
+        video_actor = parserInfo(downHtml(search_url))
         self.moveVideo(self.work_path, video_name, video_actor)
 
     def findAllVideo(self, path, find_subfolder=False):
@@ -175,8 +152,7 @@ class JavTool:
                 try:
                     os.rename(os.path.join(file_path, old_name),
                               os.path.join(file_path, new_name))
-                    print(
-                        '{}\n重命名成 {}\tOK.\n----------------------------'.format(old_name, new_name))
+                    print('重命名后：{}\t\t原始文件名：{}'.format(new_name,old_name))
                 except Exception as e:
                     print('{}\n失败, 具体原因：\t{}'.format(new_name, e))
         else:
@@ -203,7 +179,7 @@ class JavTool:
                 with Pool(8) as p:
                     p.map(self.classIfy, video_dict)
                 # for video_name in video_dict:
-                    # self.classIfy(video_name)
+                #     self.classIfy(video_name)
         except FileNotFoundError:
             print('没有找到视频文件.')
 
