@@ -1,0 +1,13 @@
+Invalid port. Exiting...
+1625369633635	mozrunner::runner	INFO	Running command: "C:\\Program Files\\Mozilla Firefox\\firefox.exe" "-marionette" "-foreground" "-no-remote" "-profile" "C:\\Users\\zhang\\AppData\\Local\\Temp\\rust_mozprofileySM0y1"
+JavaScript error: resource://gre/modules/XULStore.jsm, line 66: Error: Can't find profile directory.
+console.warn: SearchSettings: "get: No settings file exists, new profile?" (new Error("", "(unknown module)"))
+1625369637434	Marionette	INFO	Listening on port 1068
+1625369637868	Marionette	WARN	TLS certificate errors will be ignored for this session
+JavaScript error: resource://devtools/server/actors/highlighters/utils/markup.js, line 141: TypeError: window.document.documentElement is null
+console.log: WebExtensions: reset-default-search: starting.
+console.log: WebExtensions: reset-default-search: No addons in our list are installed.
+1625370233599	Marionette	INFO	Stopped listening on port 1068
+
+###!!! [Child][RunMessage] Error: Channel closing: too late to send/recv, messages will be lost
+

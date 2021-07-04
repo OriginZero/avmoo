@@ -1,14 +1,14 @@
+import json
 import os
 import re
-import requests
-from time import time
-from lxml import etree
+import urllib.request
 from multiprocessing import Pool
 from shutil import move as move_file
+from time import time
 
 class JavTool:
     __slots__ = ('_videosuffix', '_regex', '_headers', '_payload',
-                 '_search_url', 'work_path')
+                 '_search_url', 'work_path', 'proxies')
 
     def __init__(self, work_path):
         if os.path.isdir(work_path):
@@ -17,18 +17,15 @@ class JavTool:
             raise OSError('无法找到改路径或路径不合法.')
 
         self._videosuffix = ['.wmv', '.rmvb', '.mov', '.avi', '.mp4', '.mkv']
-        self._regex = re.compile('([A-Za-z]{3,4})(-|_)(\d{3})')
-        self._payload={
-            'username': 'admin',
-            'password': 'admin123'
-        }
+        self._regex = re.compile('([A-Za-z]{2,5})(-|_)(\d{3,4})')
+
         self._headers = {
-            'Host': 'www.libredmm.com',
-            'Connection': 'keep-alive',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36'
         }
-        # self._search_url = 'https://javzoo.com/cn/search/{0}'
-        self._search_url = 'https://www.libredmm.com/movies/{0}'
+        self.proxies = {'http': 'socks5://127.0.0.1:7890',
+                        'https': 'socks5://127.0.0.1:7890'}
+
+        self._search_url = 'https://javdb.com/videos/search_autocomplete.json?q={0}'
 
     def moveVideo(self, video_path, video_name, video_actor):
         new_dir = os.path.join(video_path, video_actor)
@@ -42,69 +39,30 @@ class JavTool:
         print('{}\tMOVE\tOK'.format(video_name))
 
     def classIfy(self, video_name):
+        proxy_handler = urllib.request.ProxyHandler(self.proxies)
+        opener = urllib.request.build_opener(proxy_handler)
 
-        # video_name = 'NNPJ-326'
-        # 下载
-        def downHtml(url):
-            try:
-                r = requests.get(url, headers=self._headers, data=self._payload)
-                r.raise_for_status
-                r.encoding = 'utf-8'
-                return r.text
-            except Exception as e:
-                print(e)
+        def downloadProxy(url):
+            request = urllib.request.Request(url, headers=self._headers)
+            res = opener.open(request)
+            return res.read()
 
-        # 解析搜索页面
-        def parserSearch(search_html):
-            """
-                search_html: 参数 搜索 页面HTML
-
-                返回值 详细信息URL
-                other 网络原因或没有找到结果
-            """
-            if not search_html:
-                raise Exception('未返回数据')
-            try:
-                temp_HTML = etree.HTML(search_html)
-                selector = temp_HTML.xpath('//a[@class="movie-box"]')
-                return selector[0].attrib['href']
-            except IndexError:
-                print('未查询到视频信息...')
-
-        # 解析信息页面
-        def parserInfo(info_html):
-            """
-                info_html: 参数 详细信息 页面HTML
-
-                返回值 出演人员
-                double 代表多位
-                null 代表无
-            """
-            try:
-                names = etree.HTML(info_html).xpath('//div[@class="card actress"]//h6[@class="card-title"]//a/text()')
-                if len(names) == 1:
-                    return names[0]
-                if len(names) > 1:
-                    return 'double'
-                return 'null'
-            except Exception as e:
-                print('parse info error {}'.format(e))
-                return 'error'
+        def parseActors(res):
+            actors = json.loads(res)[0]['actors'].replace(
+                '演員: ', '').split(',')
+            count = len(actors)
+            if (count == 1):
+                return actors[0]
+            if (count > 1):
+                return 'double'
+            return 'null'
 
         print('查找{}中...'.format(video_name))
         search_url = self._search_url.format(os.path.splitext(video_name)[0])
-        """
-        info_url = parserSearch(downHtml(search_url))
-        # 多
-        # video_actor = parserInfo(downHtml('https://javzoo.com/cn/movie/66gc'))
-        # 单
-        # video_actor = parserInfo(downHtml('https://javzoo.com/cn/movie/74rp'))
-        # 无
-        # video_actor = parserInfo(downHtml('https://javzoo.com/cn/movie/6yy5'))
-        video_actor = parserInfo(downHtml(info_url))
-        """
-        # video_actor = parserJson(downHtml(search_url))
-        video_actor = parserInfo(downHtml(search_url))
+
+        res = downloadProxy(search_url)
+        video_actor = parseActors(res)
+        # print(video_actor)
         self.moveVideo(self.work_path, video_name, video_actor)
 
     def findAllVideo(self, path, find_subfolder=False):
@@ -147,7 +105,7 @@ class JavTool:
                 try:
                     os.rename(os.path.join(file_path, old_name),
                               os.path.join(file_path, new_name))
-                    print('重命名后：{}\t\t原始文件名：{}'.format(new_name,old_name))
+                    print('重命名后：{}\t\t原始文件名：{}'.format(new_name, old_name))
                 except Exception as e:
                     print('{}\n失败, 具体原因：\t{}'.format(new_name, e))
         else:
